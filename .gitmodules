@@ -1,0 +1,6 @@
+[submodule "subtlechat-mini"]
+	path = subtlechat-mini
+	url = https://github.com/C-Anderson-C/subtlechat-mini.git
+[submodule "subtlechat-vue"]
+	path = subtlechat-vue
+	url = https://github.com/C-Anderson-C/subtlechat-vue.git
