@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="top.javahai.chatroom.dao.UserDao">
+
+    <resultMap type="top.javahai.chatroom.entity.User" id="UserMap">
+        <result property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="nickname" column="nickname"/>
+        <result property="password" column="password"/>
+        <result property="avatar" column="avatar"/>
+        <result property="email" column="email"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="status" column="status"/>
+    </resultMap>
+
+    <!--根据用户名查询用户 -->
+    <select id="loadUserByUsername" resultMap="UserMap">
+        select * from chatroom.user where username=#{username}
+    </select>
+
+    <!--获取所有用户数据 -->
+    <select id="getUsersWithoutCurrentUser" resultMap="UserMap" parameterType="java.lang.Integer">
+        select id, username, nickname, avatar, email, create_time, update_time, status
+        from chatroom.user where id!=#{id}
+    </select>
+
+    <!--查询单个-->
+    <select id="queryById" resultMap="UserMap">
+        select id, username, nickname, password, avatar, email, create_time, update_time, status
+        from chatroom.user where id = #{id}
+    </select>
+
+    <!--查询指定行数据-->
+    <select id="queryAllByLimit" resultMap="UserMap">
+        select id, username, nickname, password, avatar, email, create_time, update_time, status
+        from chatroom.user
+                 limit #{offset}, #{limit}
+    </select>
+
+    <!--通过实体作为筛选条件查询-->
+    <select id="queryAll" resultMap="UserMap">
+        select id, username, nickname, password, avatar, email, create_time, update_time, status
+        from chatroom.user
+        <where>
+            <if test="id != null">and id = #{id}</if>
+            <if test="username != null and username != ''">and username = #{username}</if>
+            <if test="nickname != null and nickname != ''">and nickname = #{nickname}</if>
+            <if test="password != null and password != ''">and password = #{password}</if>
+            <if test="avatar != null and avatar != ''">and avatar = #{avatar}</if>
+            <if test="email != null and email != ''">and email = #{email}</if>
+            <if test="createTime != null">and create_time = #{createTime}</if>
+            <if test="updateTime != null">and update_time = #{updateTime}</if>
+            <if test="status != null">and status = #{status}</if>
+        </where>
+    </select>
+
+    <!--新增所有列-->
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+        insert into chatroom.user(username, nickname, password, avatar, email, create_time, update_time, status)
+        values (#{username}, #{nickname}, #{password}, #{avatar}, #{email}, #{createTime}, #{updateTime}, #{status})
+    </insert>
+
+    <!--通过主键修改数据-->
+    <update id="update">
+        update chatroom.user
+        <set>
+            <if test="username != null and username != ''">username = #{username},</if>
+            <if test="nickname != null and nickname != ''">nickname = #{nickname},</if>
+            <if test="password != null and password != ''">password = #{password},</if>
+            <if test="avatar != null and avatar != ''">avatar = #{avatar},</if>
+            <if test="email != null and email != ''">email = #{email},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <!--通过主键删除-->
+    <delete id="deleteById">
+        delete from chatroom.user where id = #{id}
+    </delete>
+
+    <!-- 设置用户为在线 -->
+    <update id="setUserStateToOn" parameterType="int">
+        update chatroom.user set user_state_id = 1 where id = #{id}
+    </update>
+
+    <!-- 设置用户为离线 -->
+    <update id="setUserStateToLeave" parameterType="int">
+        update chatroom.user set user_state_id = 2 where id = #{id}
+    </update>
+
+    <!-- 检查用户名/昵称 -->
+    <select id="checkUsername" resultType="java.lang.Integer">
+        select count(*) from chatroom.user where username=#{username}
+    </select>
+    <select id="checkNickname" resultType="java.lang.Integer">
+        select count(*) from chatroom.user where nickname=#{nickname}
+    </select>
+
+    <!-- 按条件查询所有用户（分页） -->
+    <select id="getAllUserByPage" resultMap="UserMap">
+        select * from chatroom.user where 1=1
+        <if test="keyword!=null and keyword!=''">
+            and nickname like concat('%',#{keyword},'%')
+        </if>
+        <if test="status!=null">
+            and status =#{status}
+        </if>
+        <if test="page!=null and size!=null">
+            limit #{page},#{size}
+        </if>
+    </select>
+    <select id="getTotal" resultType="java.lang.Long">
+        select count(*) from chatroom.user where 1=1
+        <if test="keyword!=null and keyword!=''">
+            and nickname like concat('%',#{keyword},'%')
+        </if>
+        <if test="status!=null">
+            and status =#{status}
+        </if>
+    </select>
+    <!-- 批量删除 -->
+    <delete id="deleteByIds">
+        delete from chatroom.user where id in
+        <foreach collection="ids" item="id" separator="," open="(" close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>
