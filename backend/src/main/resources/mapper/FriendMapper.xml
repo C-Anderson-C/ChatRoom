@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="top.javahai.chatroom.dao.FriendDao">
+
+    <!-- 可以保留下面的映射，因为它们没有与注解冲突 -->
+
+    <!-- 为SQL查询结果设置自定义映射 -->
+    <resultMap id="FriendRelationshipMap" type="top.javahai.chatroom.entity.FriendRelationship">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="friend_id" property="friendId"/>
+        <result column="status" property="status"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <!-- 扩展字段 -->
+        <result column="username" property="username"/>
+        <result column="nickname" property="nickname"/>
+        <result column="avatar" property="avatar"/>
+    </resultMap>
+
+    <!-- 获取好友请求的高级查询
+    <select id="getDetailedFriendRequests" resultMap="FriendRelationshipMap">
+        SELECT fr.*, u.username, u.nickname, u.avatar
+        FROM friend_request fr
+        JOIN user u ON fr.user_id = u.id
+        WHERE fr.friend_id = #{userId} AND fr.status = 0
+        ORDER BY fr.create_time DESC
+    </select>
+    -->
+
+    <!-- 高级搜索用户查询（带有更复杂的联合条件）
+    <select id="advancedSearchUsers" resultType="java.util.Map">
+        SELECT
+            u.id, u.username, u.nickname, u.avatar, u.email, u.user_state_id,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM friend_relationship fr
+                WHERE ((fr.user_id = #{currentUserId} AND fr.friend_id = u.id)
+                   OR (fr.friend_id = #{currentUserId} AND fr.user_id = u.id))
+                  AND fr.status = 1
+            ) THEN true ELSE false END as is_friend,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM friend_request fq
+                WHERE fq.user_id = #{currentUserId} AND fq.friend_id = u.id AND fq.status = 0
+            ) THEN true ELSE false END as has_sent_request
+        FROM user u
+        WHERE u.id != #{currentUserId}
+          AND (
+              u.username LIKE CONCAT('%', #{keyword}, '%')
+              OR u.nickname LIKE CONCAT('%', #{keyword}, '%')
+              OR u.email LIKE CONCAT('%', #{keyword}, '%')
+          )
+          <if test="userStateId != null">
+              AND u.user_state_id = #{userStateId}
+          </if>
+        ORDER BY
+            CASE WHEN u.username = #{keyword} THEN 0
+                 WHEN u.nickname = #{keyword} THEN 1
+                 WHEN u.username LIKE CONCAT(#{keyword}, '%') THEN 2
+                 WHEN u.nickname LIKE CONCAT(#{keyword}, '%') THEN 3
+                 ELSE 4
+            END,
+            u.nickname, u.username
+    </select>
+    -->
+
+    <!-- 批量插入好友关系
+    <insert id="batchInsertFriendships" parameterType="java.util.List">
+        INSERT INTO friend_relationship (user_id, friend_id, status, create_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId}, #{item.friendId}, #{item.status}, #{item.createTime})
+        </foreach>
+    </insert>
+    -->
+
+    <!-- 统计用户好友数量
+    <select id="countFriends" resultType="int">
+        SELECT COUNT(*)
+        FROM friend_relationship
+        WHERE ((user_id = #{userId} AND friend_id != #{userId})
+           OR (friend_id = #{userId} AND user_id != #{userId}))
+          AND status = 1
+    </select>
+    -->
+    <!-- 查询待处理的好友请求数量 -->
+    <select id="countPendingRequests" resultType="Integer">
+        SELECT COUNT(*) FROM friend_request
+        WHERE to_user_id = #{userId} AND status = 0
+    </select>
+
+</mapper>
