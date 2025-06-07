@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="top.javahai.chatroom.dao.GroupDao">
+
+
+    <insert id="insert" parameterType="top.javahai.chatroom.entity.Group" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO chatroom.`group_chat` (name, description, avatar, creator_id, create_time)
+        VALUES (#{name}, #{description}, #{avatar}, #{creatorId}, #{createTime})
+    </insert>
+
+    <select id="selectByUserId" resultType="top.javahai.chatroom.entity.Group">
+        SELECT g.*
+        FROM chatroom.group_chat g
+                 JOIN chatroom.group_member gm ON g.id = gm.group_id
+        WHERE gm.user_id = #{userId}
+        ORDER BY g.create_time DESC
+    </select>
+
+    <select id="selectById" resultType="top.javahai.chatroom.entity.Group">
+        SELECT * FROM chatroom.`group_chat` WHERE id = #{id}
+    </select>
+
+</mapper>
