@@ -1,11 +1,11 @@
 let proxyObj={};
 proxyObj['/ws']={
   ws:true,
-  target:"ws://localhost:8082"
+  target:"ws://localhost:8081"
 };
 proxyObj['/']={
   ws:false,
-  target:'http://localhost:8082',
+  target:'http://localhost:8081',
   changeOrigin: true,
   pathRewrite:{
     '^/':''
@@ -14,7 +14,7 @@ proxyObj['/']={
 module.exports={
   devServer:{
     host:'localhost',
-    port:8082,
+    port:8083, // 改为 8083
     proxy:proxyObj
   }
 }

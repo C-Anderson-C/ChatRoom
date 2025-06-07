@@ -6,26 +6,54 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import top.javahai.chatroom.dao.FriendDao;
 import top.javahai.chatroom.dao.UserDao;
-import top.javahai.chatroom.entity.RespBean;
 import top.javahai.chatroom.entity.RespPageBean;
 import top.javahai.chatroom.entity.User;
+import top.javahai.chatroom.security.ChatUserDetails;
 import top.javahai.chatroom.service.UserService;
 import top.javahai.chatroom.utils.UserUtil;
 
-import javax.annotation.Resource;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * (User)表服务实现类
  */
 @Service("userService")
 public class UserServiceImpl implements UserService, UserDetailsService {
-    @Resource
-    private UserDao userDao;
+
+    @Autowired
+    private final UserDao userDao;
+    @Autowired
+    private final FriendDao friendDao;
+
+    @Autowired
+    public UserServiceImpl(UserDao userDao, FriendDao friendDao) {
+        this.userDao = userDao;
+        this.friendDao = friendDao;
+    }
+
+
+
+    @Override
+    public List<User> searchUserByKeyword(String keyword) {
+        return userDao.searchUsers(keyword);
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userDao.loadUserByUsername(username);
+        if (user == null) {
+            throw new UsernameNotFoundException("用户不存在");
+        }
+        // 返回Spring Security兼容的UserDetails实现
+        return new ChatUserDetails(user);
+    }
+
+    public User loadUserEntityByUsername(String username) throws UsernameNotFoundException {
         User user = userDao.loadUserByUsername(username);
         if (user == null) {
             throw new UsernameNotFoundException("用户不存在");
@@ -117,4 +145,95 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         return userDao.deleteByIds(ids);
     }
 
+
+    /**
+     * 获取好友状态
+     * @param userId 当前用户ID
+     * @param targetId 目标用户ID
+     * @return 0: 不是好友, 1: 已是好友, 2: 已发送请求, 3: 已收到请求
+     */
+    @Override
+    public Integer getFriendStatus(Integer userId, Integer targetId) {
+        try {
+            if (userId == null || targetId == null) {
+                return 0; // 默认返回不是好友
+            }
+
+            // 使用DAO方法查询好友状态
+            return friendDao.getFriendStatus(userId, targetId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0; // 发生错误时默认返回不是好友
+        }
+    }
+
+    /**
+     * 搜索用户并标记好友状态
+     * @param keyword 搜索关键词
+     * @param currentUserId 当前用户ID
+     * @return 搜索结果列表，包含好友状态
+     */
+    @Override
+    public List<Map<String, Object>> searchUsersWithFriendStatus(String keyword, Integer currentUserId) {
+        try {
+            System.out.println("执行searchUsersWithFriendStatus - keyword: " + keyword + ", currentUserId: " + currentUserId);
+
+            // 确保参数有效
+            if (keyword == null) {
+                System.out.println("关键词为空，返回空列表");
+                return new ArrayList<>();
+            }
+
+            // 添加通配符
+            String searchKeyword = "%" + keyword + "%";
+            System.out.println("使用搜索关键词: " + searchKeyword);
+
+            // 查询用户列表
+            List<User> users = userDao.searchUsersByKeyword(searchKeyword, currentUserId);
+            System.out.println("搜索到用户数量: " + (users != null ? users.size() : 0));
+
+            if (users == null) {
+                System.out.println("用户列表为null，返回空列表");
+                return new ArrayList<>();
+            }
+
+            List<Map<String, Object>> result = new ArrayList<>();
+
+            // 处理每个用户
+            for (User user : users) {
+                try {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", user.getId());
+                    map.put("username", user.getUsername());
+                    map.put("nickname", user.getNickname());
+
+                    // 这里根据User实体的实际属性选择正确的获取头像的方法
+                    // 如果User实体使用avatar属性，则使用getAvatar()
+                    // 否则使用getUserProfile() (根据实体定义)
+                    map.put("avatar", user.getAvatar());
+
+                    // 检查好友状态前记录
+                    System.out.println("检查用户 " + user.getId() + " 的好友状态");
+
+                    // 检查好友关系状态
+                    Integer friendStatus = friendDao.getFriendStatus(currentUserId, user.getId());
+                    System.out.println("用户 " + user.getId() + " 的好友状态: " + friendStatus);
+
+                    map.put("friendStatus", friendStatus);
+                    map.put("isFriend", friendStatus == 1);
+
+                    result.add(map);
+                } catch (Exception e) {
+                    System.err.println("处理用户 " + user.getId() + " 时发生错误: " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+
+            return result;
+        } catch (Exception e) {
+            System.err.println("searchUsersWithFriendStatus异常: " + e.getMessage());
+            e.printStackTrace();
+            throw e; // 重新抛出以便控制器捕获
+        }
+    }
 }

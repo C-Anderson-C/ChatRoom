@@ -7,10 +7,16 @@ import Home from '../views/admin/Home'
 import UserInfo from '../views/admin/UserInfo'
 import GroupChatRecord from '../views/admin/GroupChatRecord'
 import PrivateChatRecord from '../views/admin/PrivateChatRecord'
+import UserProfile from '../components/chat/UserProfile.vue'
 
 Vue.use(VueRouter)
 
   const routes = [
+    {
+      path:'/user/profile',
+      name:'UserProfile',
+      component: UserProfile
+    },
   {
     path: '/',
     name: 'Login',

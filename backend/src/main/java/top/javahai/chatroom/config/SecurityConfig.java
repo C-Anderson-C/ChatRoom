@@ -12,12 +12,9 @@ import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import top.javahai.chatroom.entity.RespBean;
 import top.javahai.chatroom.entity.User;
@@ -28,6 +25,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * @author Hai
@@ -37,42 +37,59 @@ import java.io.PrintWriter;
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Autowired
     UserServiceImpl userService;
-    // 注释掉验证码过滤器的注入
-    // @Autowired
-    // VerificationCodeFilter verificationCodeFilter;
+
     @Autowired
     SimpMessagingTemplate simpMessagingTemplate;
 
-    //验证服务
+    // 验证服务
     @Override
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userService);
     }
 
-    //密码加密
-//    @Bean
-//    PasswordEncoder another_passwordEncoder(){
-//        return new BCryptPasswordEncoder();
-//    }
+    // 为CORS配置添加Bean
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // 使用allowedOriginPatterns代替allowedOrigin
+        configuration.addAllowedOriginPattern("http://localhost:8083");
+        configuration.addAllowedOriginPattern("http://localhost:8082");
+        configuration.addAllowedOriginPattern("http://localhost:8081");
+        configuration.addAllowedOriginPattern("http://127.0.0.1:8083");
 
-    //忽略"/login","/verifyCode","/register","/user/register"请求，这些请求不需要进入Security的拦截器
+        configuration.setAllowCredentials(true);
+        configuration.addAllowedMethod("*"); // 允许所有HTTP方法
+        configuration.addAllowedHeader("*"); // 允许所有头部
+        configuration.addExposedHeader("Authorization");
+        configuration.addExposedHeader("Content-Type");
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    // 忽略"/login","/verifyCode","/register","/user/register"请求，这些请求不需要进入Security的拦截器
     @Override
     public void configure(WebSecurity web) throws Exception {
         web.ignoring().antMatchers(
                 "/login",
-                "/verifyCode", // 可选，如果前端和后端都不再需要验证码接口，可以去掉
+                "/verifyCode",
                 "/register",
-                "/user/register"
+                "/user/register",
+                "/ws/**", // 允许WebSocket连接
+                "/ws/ep/**" // 允许WebSocket端点
         );
     }
 
-    //登录验证
+    // 登录验证
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        // 注释掉验证码过滤器
-        // http.addFilterBefore(verificationCodeFilter, UsernamePasswordAuthenticationFilter.class);
-        http.authorizeRequests()
-                .antMatchers("/user/register", "/user/checkUsername", "/user/checkNickname", "/verifyCode", "/ossFileUpload").permitAll()// 注册接口放行
+        // 启用CORS支持 - 使用我们定义的corsConfigurationSource
+        http.cors().configurationSource(corsConfigurationSource())
+                .and()
+                .authorizeRequests()
+                .antMatchers("/user/register", "/user/checkUsername", "/user/checkNickname", "/verifyCode", "/ossFileUpload", "/ws/**", "/ws/ep/**").permitAll() // 注册接口和WebSocket端点放行
                 .anyRequest().authenticated()
                 .and()
                 .formLogin()
@@ -80,7 +97,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .passwordParameter("password")
                 .loginPage("/login")
                 .loginProcessingUrl("/doLogin")
-                //成功处理
+                // 成功处理
                 .successHandler(new AuthenticationSuccessHandler() {
                     @Override
                     public void onAuthenticationSuccess(HttpServletRequest req, HttpServletResponse resp, Authentication authentication) throws IOException, ServletException {
@@ -88,10 +105,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         PrintWriter out=resp.getWriter();
                         User user=(User) authentication.getPrincipal();
                         user.setPassword(null);
-                        //更新用户状态为在线
+                        // 更新用户状态为在线
                         userService.setUserStateToOn(user.getId());
                         user.setUserStateId(1);
-                        //广播系统通知消息
+                        // 广播系统通知消息
                         simpMessagingTemplate.convertAndSend("/topic/notification","系统消息：用户【"+user.getNickname()+"】进入了聊天室");
                         RespBean ok = RespBean.ok("登录成功", user);
                         String s = new ObjectMapper().writeValueAsString(ok);
@@ -100,7 +117,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         out.close();
                     }
                 })
-                //失败处理
+                // 失败处理
                 .failureHandler(new AuthenticationFailureHandler() {
                     @Override
                     public void onAuthenticationFailure(HttpServletRequest req, HttpServletResponse resp, AuthenticationException exception) throws IOException, ServletException {
@@ -124,19 +141,21 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         out.close();
                     }
                 })
-                .permitAll()//返回值直接返回
+                .permitAll() // 返回值直接返回
                 .and()
-                //登出处理
+                // 登出处理
                 .logout()
                 .logoutUrl("/logout")
                 .logoutSuccessHandler(new LogoutSuccessHandler() {
                     @Override
                     public void onLogoutSuccess(HttpServletRequest req, HttpServletResponse resp, Authentication authentication) throws IOException, ServletException {
-                        //更新用户状态为离线
-                        User user = (User) authentication.getPrincipal();
-                        userService.setUserStateToLeave(user.getId());
-                        //广播系统消息
-                        simpMessagingTemplate.convertAndSend("/topic/notification","系统消息：用户【"+user.getNickname()+"】退出了聊天室");
+                        // 更新用户状态为离线
+                        if (authentication != null && authentication.getPrincipal() instanceof User) {
+                            User user = (User) authentication.getPrincipal();
+                            userService.setUserStateToLeave(user.getId());
+                            // 广播系统消息
+                            simpMessagingTemplate.convertAndSend("/topic/notification","系统消息：用户【"+user.getNickname()+"】退出了聊天室");
+                        }
                         resp.setContentType("application/json;charset=utf-8");
                         PrintWriter out=resp.getWriter();
                         out.write(new ObjectMapper().writeValueAsString(RespBean.ok("成功退出！")));
@@ -146,8 +165,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 })
                 .permitAll()
                 .and()
-                .csrf().disable()//关闭csrf防御方便调试
-                //没有认证时，在这里处理结果，不进行重定向到login页
+                .csrf().disable() // 关闭csrf防御方便调试
+                // 没有认证时，在这里处理结果，不进行重定向到login页
                 .exceptionHandling().authenticationEntryPoint(new AuthenticationEntryPoint() {
                     @Override
                     public void commence(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, AuthenticationException e) throws IOException, ServletException {

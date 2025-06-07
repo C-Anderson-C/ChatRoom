@@ -6,10 +6,6 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-/**
- * @author Hai
- * @date 2020/6/16 - 23:31
- */
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
@@ -19,18 +15,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
    */
   @Override
   public void registerStompEndpoints(StompEndpointRegistry registry) {
-
-    registry.addEndpoint("/ws/ep").setAllowedOrigins("*").withSockJS();
-
+    // 修改为统一端点 /ws，移除 /ep
+    registry.addEndpoint("/ws").setAllowedOrigins("*").withSockJS();
   }
 
   /**
-   * 注册拦截"/topic","/queue"的消息
+   * 配置消息代理
    * @param registry
    */
   @Override
   public void configureMessageBroker(MessageBrokerRegistry registry) {
-    registry.enableSimpleBroker("/topic","/queue");
-
+    // 添加应用目的地前缀 /app
+    registry.setApplicationDestinationPrefixes("/app");
+    registry.enableSimpleBroker("/topic", "/queue");
   }
 }

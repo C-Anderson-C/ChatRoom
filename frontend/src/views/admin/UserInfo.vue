@@ -4,7 +4,7 @@
     用户账号状态选择：
     <el-select v-model="stateValue" placeholder="请选择">
       <el-option
-              v-for="item in stateOptions"
+          v-for="item in stateOptions"
               :key="item.value"
               :label="item.label"
               :value="item.value">

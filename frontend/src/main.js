@@ -16,6 +16,66 @@ Vue.prototype.getRequest = getRequest
 Vue.prototype.putRequest = putRequest
 Vue.prototype.deleteRequest = deleteRequest
 
+// 创建一个事件总线并将其附加到 Vue 原型上
+Vue.prototype.$bus = new Vue();
+// 全局消息服务
+Vue.prototype.$messageService = {
+  // 存储所有消息
+  messages: {},
+
+  // 添加消息
+  addMessage(key, message) {
+    if (!this.messages[key]) {
+      this.messages[key] = [];
+    }
+
+    // 添加消息
+    this.messages[key].push({
+      ...message,
+      id: message.id || Date.now() + Math.random().toString(36).substring(2, 8),
+      createTime: message.createTime || new Date()
+    });
+
+    // 触发事件
+    Vue.prototype.$bus.$emit('direct-message-added', { key, message });
+
+    console.log(`全局消息服务: 消息已添加到 ${key}, 当前消息数:`, this.messages[key].length);
+  },
+
+  // 获取指定键的消息
+  getMessages(key) {
+    return this.messages[key] || [];
+  },
+
+  // 获取所有消息键
+  getAllKeys() {
+    return Object.keys(this.messages);
+  },
+
+  // 查找与用户相关的消息
+  findUserMessages(username) {
+    const result = [];
+
+    Object.keys(this.messages).forEach(key => {
+      if (key.includes(username)) {
+        result.push(...this.messages[key]);
+      }
+    });
+
+    return result.sort((a, b) => new Date(a.createTime) - new Date(b.createTime));
+  }
+};
+
+// 添加全局方法：滚动消息到底部
+Vue.prototype.$scrollMessagesToBottom = function() {
+  setTimeout(() => {
+    const messageList = document.querySelector('.message-list');
+    if (messageList) {
+      messageList.scrollTop = messageList.scrollHeight;
+    }
+  }, 50);
+};
+
 /*路由前置守卫
 to：去哪，from：从哪来，调用next()：通过本次路由请求*/
 router.beforeEach((to, from, next) => {

@@ -1,10 +1,12 @@
 package top.javahai.chatroom.service;
 
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import top.javahai.chatroom.entity.RespBean;
 import top.javahai.chatroom.entity.RespPageBean;
 import top.javahai.chatroom.entity.User;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * (User)表服务接口
@@ -13,6 +15,15 @@ import java.util.List;
  * @since 2020-06-16 11:37:09
  */
 public interface UserService {
+    /**
+     * 根据关键词搜索用户
+     */
+    List<User> searchUserByKeyword(String keyword);
+    /**
+     * 根据用户名加载用户实体
+     */
+    User loadUserEntityByUsername(String username) throws UsernameNotFoundException;
+
 
 
     /**
@@ -32,6 +43,7 @@ public interface UserService {
      * @param id
      */
     public void setUserStateToLeave(Integer id);
+
 
     /**
      * 通过ID查询单条数据
@@ -86,6 +98,9 @@ public interface UserService {
      * @param nickname
      * @return
      */
+
+
+
     Integer checkNickname(String nickname);
 
     RespPageBean getAllUserByPage(Integer page, Integer size,  String keyword,Integer isLocked,Integer status);
@@ -93,4 +108,13 @@ public interface UserService {
     Integer changeLockedStatus(Integer id, Boolean isLocked);
 
     Integer deleteByIds(Integer[] ids);
+
+    Integer getFriendStatus(Integer userId, Integer targetId);
+
+    List<Map<String, Object>> searchUsersWithFriendStatus(String keyword, Integer currentUserId);
+
+
+
+
+
 }
